@@ -35,7 +35,7 @@ def _remove_quotes(s):
 class DataNode(template.Node):
     def __init__(self, nodelist, name, series):
         self._nodelist = nodelist
-        self._name = name
+        self._name = template.Variable(name)
         self._series = template.Variable(series)
 
     def render(self, context):
@@ -48,13 +48,14 @@ class DataNode(template.Node):
         googlecharts_data_%(name)s._cl = [%(cl)s];
         '''
         series = self._series.resolve(context)
+        name = self._name.resolve(context)
         nodelist = self._nodelist.get_nodes_by_type(ColNode)
         data = []
         for row in series:
             data.append([node.render(context, row[i]) for i, node in enumerate(nodelist)])
         data_str = ''.join(['[%s],' % ','.join(r) for r in data])
         cl = ','.join(['["%s","%s"]' % (c._typename, c._label) for c in nodelist])
-        return self.render.__doc__ % {'name': self._name, 'data': data_str, 'cl': cl}
+        return self.render.__doc__ % {'name': name, 'data': data_str, 'cl': cl}
 
 @register.tag
 def data(parser, token):
@@ -122,17 +123,20 @@ def options(parser, token):
 # {% graph "container" "data" "options" %}
 
 class GraphNode(template.Node):
-    def __init__(self, **kwargs):
-        self._args = kwargs
+    def __init__(self, container, data, options):
+        self._container = container
+        self._data = template.Variable(data)
+        self._options = options
 
     def render(self, context):
+        data = self._data.resolve(context)
         '''
         opt = _clone(googlecharts_options_%(options)s);
         opt.container = "%(container)s";
         opt.rows = googlecharts_data_%(data)s;
         googlecharts.push(opt);
         '''
-        return self.render.__doc__ % self._args
+        return self.render.__doc__ % (data, self._container, self._options)
 
 @register.tag
 def graph(parser, token):
