@@ -124,19 +124,25 @@ def options(parser, token):
 
 class GraphNode(template.Node):
     def __init__(self, container, data, options):
-        self._container = container
+        self._container = template.Variable(container)
         self._data = template.Variable(data)
         self._options = options
 
     def render(self, context):
-        data = self._data.resolve(context)
         '''
         opt = _clone(googlecharts_options_%(options)s);
         opt.container = "%(container)s";
         opt.rows = googlecharts_data_%(data)s;
         googlecharts.push(opt);
         '''
-        return self.render.__doc__ % (data, self._container, self._options)
+        data = self._data.resolve(context)
+        container = self._container.resolve(context)
+        return self.render.__doc__ % {
+            'data': data,
+            'container': container,
+            'options': self._options,
+        }
+
 
 @register.tag
 def graph(parser, token):
